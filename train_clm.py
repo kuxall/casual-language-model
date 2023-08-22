@@ -11,7 +11,6 @@ datasets = load_dataset(
 model_checkpoint = "gpt2"
 tokenizer_checkpoint = "gpt2"
 
-
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_checkpoint)
 
 
@@ -29,10 +28,7 @@ def group_texts(examples):
     # Concatenate all texts.
     concatenated_examples = {k: sum(examples[k], []) for k in examples.keys()}
     total_length = len(concatenated_examples[list(examples.keys())[0]])
-    # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
-    # customize this part to your needs.
     total_length = (total_length // block_size) * block_size
-    # Split by chunks of max_len.
     result = {
         k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
         for k, t in concatenated_examples.items()
@@ -48,17 +44,17 @@ lm_datasets = tokenized_datasets.map(
     num_proc=4,
 )
 
-tokenizer.decode(lm_datasets["train"][1]["input_ids"])
-
-
 config = AutoConfig.from_pretrained(model_checkpoint)
 model = AutoModelForCausalLM.from_config(config)
 
 
+model_directory = "nepGPTmodel"
+tokenizer_directory = "nepGPTtokenizer"
+
+# Training arguments
 training_args = TrainingArguments(
-    f"{model_checkpoint}-smallnepGPT",
+    output_dir=model_directory,
     evaluation_strategy="epoch",
-    # evaluate_during_training=True,
     learning_rate=2e-5,
     weight_decay=0.01,
     num_train_epochs=5,
@@ -74,10 +70,10 @@ trainer = Trainer(
 
 trainer.train()
 
-
 eval_results = trainer.evaluate()
 print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
 
-trainer.push_to_hub()
+model.save_pretrained(model_directory)
+tokenizer.save_pretrained(tokenizer_directory)
 
-trainer.save_model("nepGPTmodel/")
+trainer.push_to_hub()
